@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analisis Sentimen — Pengabdi Setan 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* =============================================
+   RESET & ROOT
+============================================= */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #060608;
+  --bg2:       #0d0d14;
+  --bg3:       #13131e;
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(255,255,255,0.12);
+  --text:      #e8e8f0;
+  --muted:     #666680;
+  --pos:       #00e5a0;
+  --neg:       #ff4455;
+  --net:       #4488ff;
+  --accent:    #c8002a;
+  --gold:      #e8b44a;
+  --font-disp: 'Bebas Neue', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* =============================================
+   NOISE TEXTURE OVERLAY
+============================================= */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* =============================================
+   HERO HEADER
+============================================= */
+.hero {
+  position: relative;
+  padding: 60px 0 40px;
+  text-align: center;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(200,0,42,0.18) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 30% at 20% 100%, rgba(0,229,160,0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.hero-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.25em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.1s forwards;
+}
+
+.hero-title {
+  font-family: var(--font-disp);
+  font-size: clamp(48px, 8vw, 90px);
+  letter-spacing: 0.03em;
+  line-height: 0.95;
+  color: #fff;
+  text-shadow: 0 0 80px rgba(200,0,42,0.4);
+  opacity: 0;
+  animation: fadeUp 0.7s 0.2s forwards;
+}
+
+.hero-title span {
+  color: var(--accent);
+  position: relative;
+}
+
+.hero-subtitle {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: fadeUp 0.7s 0.35s forwards;
+}
+
+.hero-line {
+  width: 60px; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  margin: 24px auto 0;
+  opacity: 0;
+  animation: fadeUp 0.7s 0.45s forwards;
+}
+
+/* =============================================
+   LAYOUT
+============================================= */
+.container {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+  position: relative; z-index: 1;
+}
+
+.section { margin-bottom: 48px; }
+
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  display: flex; align-items: center; gap: 12px;
+}
+.section-label::after {
+  content: '';
+  flex: 1; height: 1px;
+  background: var(--border);
+}
+
+/* =============================================
+   STAT CARDS
+============================================= */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 40px;
+  opacity: 0;
+  animation: fadeUp 0.7s 0.5s forwards;
+}
+
+.stat-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 18px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.stat-card:hover {
+  border-color: var(--border2);
+  transform: translateY(-2px);
+}
+.stat-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--card-accent, var(--border));
+}
+.stat-card.pos { --card-accent: var(--pos); }
+.stat-card.neg { --card-accent: var(--neg); }
+.stat-card.net { --card-accent: var(--net); }
+.stat-card.total { --card-accent: var(--gold); }
+
+.stat-value {
+  font-family: var(--font-disp);
+  font-size: 38px;
+  letter-spacing: 0.02em;
+  color: #fff;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.stat-label {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.stat-pct {
+  position: absolute; top: 18px; right: 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--card-accent, var(--muted));
+}
+
+/* Verdict */
+.verdict-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 16px;
+  margin-bottom: 40px;
+  opacity: 0;
+  animation: fadeUp 0.7s 0.6s forwards;
+}
+.verdict-label {
+  font-size: 11px; color: var(--muted);
+  letter-spacing: 0.15em; text-transform: uppercase;
+}
+.verdict-value {
+  font-family: var(--font-disp);
+  font-size: 28px;
+  letter-spacing: 0.08em;
+}
+.verdict-score {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* =============================================
+   CHARTS GRID
+============================================= */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  opacity: 0;
+  animation: fadeUp 0.7s 0.65s forwards;
+}
+@media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
+
+.chart-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.chart-card:hover { border-color: var(--border2); }
+
+.chart-header {
+  padding: 16px 20px 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.chart-card img {
+  width: 100%;
+  display: block;
+  padding: 8px 4px 4px;
+}
+
+/* =============================================
+   PREDICTOR
+============================================= */
+.predictor-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  opacity: 0;
+  animation: fadeUp 0.7s 0.7s forwards;
+}
+
+.predict-input-wrap {
+  position: relative;
+}
+
+.predict-textarea {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  resize: none;
+  height: 110px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+.predict-textarea:focus {
+  border-color: rgba(200,0,42,0.5);
+  box-shadow: 0 0 0 3px rgba(200,0,42,0.08);
+}
+.predict-textarea::placeholder { color: var(--muted); }
+
+.predict-footer {
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 12px;
+  margin-top: 12px;
+}
+
+.char-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.btn-predict {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 28px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.btn-predict:hover {
+  background: #e5001f;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(200,0,42,0.35);
+}
+.btn-predict:active { transform: translateY(0); }
+.btn-predict.loading { pointer-events: none; opacity: 0.7; }
+
+/* Result panel */
+.result-panel {
+  margin-top: 24px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  display: none;
+  animation: fadeIn 0.3s forwards;
+}
+.result-panel.show { display: block; }
+
+.result-header {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 18px;
+}
+.result-emoji { font-size: 36px; }
+.result-label {
+  font-family: var(--font-disp);
+  font-size: 36px;
+  letter-spacing: 0.05em;
+}
+.result-conf {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Confidence bars */
+.conf-bars { display: flex; flex-direction: column; gap: 8px; }
+.conf-row {
+  display: flex; align-items: center; gap: 10px;
+}
+.conf-name {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  width: 58px; flex-shrink: 0;
+}
+.conf-bar-wrap {
+  flex: 1;
+  background: var(--border);
+  border-radius: 4px; height: 6px;
+  overflow: hidden;
+}
+.conf-bar-fill {
+  height: 100%; border-radius: 4px;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  width: 0;
+}
+.conf-pct {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  width: 36px; text-align: right;
+}
+
+/* =============================================
+   UPLOAD SECTION
+============================================= */
+.upload-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  opacity: 0;
+  animation: fadeUp 0.7s 0.75s forwards;
+}
+
+.drop-zone {
+  border: 1.5px dashed var(--border2);
+  border-radius: 10px;
+  padding: 36px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  position: relative;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(200,0,42,0.04);
+}
+.drop-zone input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer;
+}
+.drop-icon { font-size: 32px; margin-bottom: 8px; }
+.drop-text { color: var(--muted); font-size: 13px; }
+.drop-text strong { color: var(--text); }
+
+.btn-upload {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 28px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-top: 14px;
+}
+.btn-upload:hover {
+  border-color: var(--accent);
+  background: rgba(200,0,42,0.06);
+}
+
+/* Upload results */
+.upload-result {
+  margin-top: 24px;
+  display: none;
+}
+.upload-result.show { display: block; }
+
+.summary-pills {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+.pill.pos { background: rgba(0,229,160,0.12); color: var(--pos); }
+.pill.neg { background: rgba(255,68,85,0.12); color: var(--neg); }
+.pill.net { background: rgba(68,136,255,0.12); color: var(--net); }
+
+.result-table-wrap {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.result-table th {
+  background: var(--bg3);
+  padding: 10px 14px;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.result-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+.result-table tr:last-child td { border-bottom: none; }
+.result-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 100px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.badge.positif { background: rgba(0,229,160,0.15); color: var(--pos); }
+.badge.negatif { background: rgba(255,68,85,0.15); color: var(--neg); }
+.badge.netral  { background: rgba(68,136,255,0.15); color: var(--net); }
+
+/* =============================================
+   WORDCLOUD SECTION
+============================================= */
+.wc-tabs {
+  display: flex; gap: 6px; margin-bottom: 16px;
+}
+.wc-tab {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 100px;
+  padding: 6px 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.wc-tab:hover { border-color: var(--border2); color: var(--text); }
+.wc-tab.active {
+  background: var(--bg3);
+  border-color: var(--border2);
+  color: var(--text);
+}
+.wc-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  opacity: 0;
+  animation: fadeUp 0.7s 0.8s forwards;
+}
+.wc-card img {
+  width: 100%; display: block;
+}
+.wc-loading {
+  height: 200px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 13px;
+  font-family: var(--font-mono);
+}
+
+/* =============================================
+   FOOTER
+============================================= */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 28px 0 32px;
+  margin-top: 60px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+footer span { color: var(--accent); }
+
+/* =============================================
+   LOADING SPINNER
+============================================= */
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle; margin-right: 6px;
+}
+
+/* =============================================
+   SCROLL PROGRESS
+============================================= */
+.scroll-progress {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 2px; z-index: 100;
+  background: transparent;
+}
+.scroll-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--gold));
+  width: 0; transition: width 0.1s;
+}
+
+/* =============================================
+   ANIMATIONS
+============================================= */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; } to { opacity: 1; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; } 50% { opacity: 0.5; }
+}
+
+/* =============================================
+   SCROLLBAR
+============================================= */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a4a; }
+
+/* data_loaded warning */
+.data-banner {
+  background: rgba(232,180,74,0.08);
+  border: 1px solid rgba(232,180,74,0.2);
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 20px;
+  font-size: 12px;
+  color: var(--gold);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+}
+</style>
+</head>
+<body>
+
+<!-- Scroll Progress -->
+<div class="scroll-progress"><div class="scroll-progress-bar" id="scrollBar"></div></div>
+
+<!-- =============================================
+     HERO
+============================================= -->
+<div class="hero">
+  <div class="container">
+    <p class="hero-eyebrow">// Data Analytics · NLP · LSTM</p>
+    <h1 class="hero-title">ANALISIS<br><span>SENTIMEN</span></h1>
+    <p class="hero-subtitle">Pengabdi Setan 2: Communion &nbsp;·&nbsp; Komentar Media Sosial</p>
+    <div class="hero-line"></div>
+  </div>
+</div>
+
+<!-- =============================================
+     MAIN
+============================================= -->
+<div class="container">
+
+  {% if not data_loaded %}
+  <div class="data-banner">
+    ⚠ data_labeled.csv tidak ditemukan — menampilkan data demo. Letakkan file CSV di folder yang sama dengan app.py.
+  </div>
+  {% endif %}
+
+  <!-- STATISTIK -->
+  <div class="section">
+    <p class="section-label">Ringkasan Data</p>
+
+    <div class="stats-grid">
+      <div class="stat-card total">
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">Total Komentar</div>
+      </div>
+      <div class="stat-card pos">
+        <div class="stat-value">{{ stats.positif }}</div>
+        <div class="stat-label">Positif</div>
+        <div class="stat-pct">{{ stats.pos_pct }}%</div>
+      </div>
+      <div class="stat-card neg">
+        <div class="stat-value">{{ stats.negatif }}</div>
+        <div class="stat-label">Negatif</div>
+        <div class="stat-pct">{{ stats.neg_pct }}%</div>
+      </div>
+      <div class="stat-card net">
+        <div class="stat-value">{{ stats.netral }}</div>
+        <div class="stat-label">Netral</div>
+        <div class="stat-pct">{{ stats.net_pct }}%</div>
+      </div>
+    </div>
+
+    <div class="verdict-card">
+      <div>
+        <div class="verdict-label">Verdict Sentimen Publik</div>
+        <div class="verdict-value" style="color: {{ stats.verdict_color }}">{{ stats.verdict }}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="verdict-score">Sentiment Score</div>
+        <div style="font-family: var(--font-disp); font-size:36px; color: {{ stats.verdict_color }}">
+          {{ stats.sentiment_score }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="section">
+    <p class="section-label">Visualisasi Distribusi</p>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-header">// Distribusi Komentar</div>
+        <img src="data:image/png;base64,{{ bar_chart }}" alt="Bar Chart Sentimen">
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">// Proporsi Sentimen</div>
+        <img src="data:image/png;base64,{{ donut_chart }}" alt="Donut Chart">
+      </div>
+    </div>
+  </div>
+
+  <!-- WORDCLOUD -->
+  <div class="section">
+    <p class="section-label">Word Cloud</p>
+
+    <div class="wc-tabs">
+      <button class="wc-tab active" onclick="loadWC('all', this)">Semua</button>
+      <button class="wc-tab" onclick="loadWC('positif', this)">Positif</button>
+      <button class="wc-tab" onclick="loadWC('negatif', this)">Negatif</button>
+      <button class="wc-tab" onclick="loadWC('netral', this)">Netral</button>
+    </div>
+
+    <div class="wc-card">
+      <img id="wcImage" src="data:image/png;base64,{{ wordcloud_all }}" alt="Wordcloud">
+    </div>
+  </div>
+
+  <!-- PREDICTOR -->
+  <div class="section">
+    <p class="section-label">Klasifikasi Real-time</p>
+
+    <div class="predictor-card">
+      <div class="predict-input-wrap">
+        <textarea class="predict-textarea"
+                  id="inputText"
+                  placeholder="Ketik komentar di sini… contoh: filmnya bagus banget, seram tapi ceritanya keren!"
+                  oninput="updateChar(this)"></textarea>
+      </div>
+      <div class="predict-footer">
+        <span class="char-count" id="charCount">0 karakter</span>
+        <button class="btn-predict" id="btnPredict" onclick="doPredict()">
+          Analisis Sentimen
+        </button>
+      </div>
+
+      <!-- Result -->
+      <div class="result-panel" id="resultPanel">
+        <div class="result-header">
+          <div class="result-emoji" id="resEmoji"></div>
+          <div>
+            <div class="result-label" id="resLabel"></div>
+            <div class="result-conf" id="resConf"></div>
+          </div>
+        </div>
+        <div class="conf-bars">
+          <div class="conf-row">
+            <span class="conf-name">Positif</span>
+            <div class="conf-bar-wrap">
+              <div class="conf-bar-fill" id="barPos" style="background:var(--pos)"></div>
+            </div>
+            <span class="conf-pct" id="pctPos">-</span>
+          </div>
+          <div class="conf-row">
+            <span class="conf-name">Netral</span>
+            <div class="conf-bar-wrap">
+              <div class="conf-bar-fill" id="barNet" style="background:var(--net)"></div>
+            </div>
+            <span class="conf-pct" id="pctNet">-</span>
+          </div>
+          <div class="conf-row">
+            <span class="conf-name">Negatif</span>
+            <div class="conf-bar-wrap">
+              <div class="conf-bar-fill" id="barNeg" style="background:var(--neg)"></div>
+            </div>
+            <span class="conf-pct" id="pctNeg">-</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="section">
+    <p class="section-label">Analisis Massal — Upload CSV</p>
+
+    <div class="upload-card">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" accept=".csv" id="fileInput" onchange="handleFile(this.files[0])">
+        <div class="drop-icon">📂</div>
+        <div class="drop-text">
+          <strong>Drag & drop file CSV</strong> atau klik untuk memilih
+        </div>
+        <div class="drop-text" style="margin-top:4px; font-size:11px;">
+          Kolom yang dikenali: komentar, comment, text, teks, ulasan
+        </div>
+      </div>
+
+      <div id="fileName" style="margin-top:10px; font-family:var(--font-mono); font-size:12px; color:var(--muted);"></div>
+
+      <button class="btn-upload" id="btnUpload" onclick="doUpload()" style="display:none">
+        🚀 Analisis File
+      </button>
+
+      <div class="upload-result" id="uploadResult">
+        <div class="summary-pills" id="summaryPills"></div>
+        <div class="result-table-wrap">
+          <table class="result-table" id="resultTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Komentar</th>
+                <th>Sentimen</th>
+                <th>Confidence</th>
+              </tr>
+            </thead>
+            <tbody id="resultBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<footer>
+  <div class="container">
+    Analisis Sentimen Publik &nbsp;·&nbsp; <span>Pengabdi Setan 2: Communion</span>
+    &nbsp;·&nbsp; Praktikum Kecerdasan Buatan
+  </div>
+</footer>
+
+<!-- =============================================
+     JS
+============================================= -->
+<script>
+/* ---------- scroll progress ---------- */
+window.addEventListener('scroll', () => {
+  const pct = window.scrollY / (document.body.scrollHeight - innerHeight) * 100;
+  document.getElementById('scrollBar').style.width = pct + '%';
+});
+
+/* ---------- char counter ---------- */
+function updateChar(el) {
+  document.getElementById('charCount').textContent = el.value.length + ' karakter';
+}
+
+/* ---------- predict ---------- */
+async function doPredict() {
+  const text = document.getElementById('inputText').value.trim();
+  if (!text) {
+    document.getElementById('inputText').focus();
+    return;
+  }
+  const btn = document.getElementById('btnPredict');
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="spinner"></span>Menganalisis…';
+
+  try {
+    const res  = await fetch('/predict', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({text})
+    });
+    const data = await res.json();
+    showResult(data);
+  } catch(e) {
+    console.error(e);
+  } finally {
+    btn.classList.remove('loading');
+    btn.innerHTML = 'Analisis Sentimen';
+  }
+}
+
+function showResult(data) {
+  const panel = document.getElementById('resultPanel');
+  panel.classList.add('show');
+
+  document.getElementById('resEmoji').textContent  = data.emoji;
+  document.getElementById('resLabel').textContent  = data.label.toUpperCase();
+  document.getElementById('resLabel').style.color  = data.color;
+  document.getElementById('resConf').textContent   = `Confidence: ${data.confidence}%`;
+
+  const total = data.bars.positif + data.bars.netral + data.bars.negatif;
+  const pPos  = Math.round(data.bars.positif / total * 100);
+  const pNet  = Math.round(data.bars.netral  / total * 100);
+  const pNeg  = Math.round(data.bars.negatif / total * 100);
+
+  setTimeout(() => {
+    document.getElementById('barPos').style.width = pPos + '%';
+    document.getElementById('barNet').style.width = pNet + '%';
+    document.getElementById('barNeg').style.width = pNeg + '%';
+  }, 50);
+
+  document.getElementById('pctPos').textContent = pPos + '%';
+  document.getElementById('pctNet').textContent = pNet + '%';
+  document.getElementById('pctNeg').textContent = pNeg + '%';
+}
+
+/* Enter key shortcut */
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('inputText').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.ctrlKey) doPredict();
+  });
+});
+
+/* ---------- wordcloud tabs ---------- */
+let wcCache = {};
+async function loadWC(type, btn) {
+  document.querySelectorAll('.wc-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  if (wcCache[type]) {
+    document.getElementById('wcImage').src = 'data:image/png;base64,' + wcCache[type];
+    return;
+  }
+
+  const img = document.getElementById('wcImage');
+  img.style.opacity = '0.3';
+  img.style.animation = 'pulse 1s infinite';
+
+  try {
+    const res  = await fetch('/wordcloud/' + type);
+    const data = await res.json();
+    wcCache[type] = data.image;
+    img.src   = 'data:image/png;base64,' + data.image;
+    img.style.opacity   = '1';
+    img.style.animation = 'none';
+  } catch(e) {
+    img.style.opacity = '1';
+    img.style.animation = 'none';
+  }
+}
+
+/* ---------- upload ---------- */
+let selectedFile = null;
+
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+
+function handleFile(file) {
+  if (!file) return;
+  selectedFile = file;
+  document.getElementById('fileName').textContent = '📄 ' + file.name + '  (' + (file.size/1024).toFixed(1) + ' KB)';
+  document.getElementById('btnUpload').style.display = 'inline-block';
+}
+
+async function doUpload() {
+  if (!selectedFile) return;
+  const btn = document.getElementById('btnUpload');
+  btn.innerHTML = '<span class="spinner"></span>Memproses…';
+  btn.disabled = true;
+
+  const form = new FormData();
+  form.append('file', selectedFile);
+
+  try {
+    const res  = await fetch('/upload', {method:'POST', body: form});
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+    renderUploadResult(data);
+  } catch(e) { console.error(e); }
+  finally {
+    btn.innerHTML = '🚀 Analisis File';
+    btn.disabled = false;
+  }
+}
+
+function renderUploadResult(data) {
+  const pillsEl = document.getElementById('summaryPills');
+  const bodyEl  = document.getElementById('resultBody');
+  const resEl   = document.getElementById('uploadResult');
+
+  const colorClass = {positif:'pos', negatif:'neg', netral:'net'};
+  const emoji = {positif:'😍', negatif:'😤', netral:'😐'};
+
+  pillsEl.innerHTML = `<span style="font-family:var(--font-mono);font-size:12px;color:var(--muted)">
+    ${data.total} komentar dianalisis · kolom: <strong style="color:var(--text)">${data.column_used}</strong>
+  </span>`;
+
+  for (const [k, v] of Object.entries(data.summary)) {
+    pillsEl.innerHTML += `<span class="pill ${colorClass[k]||''}">${emoji[k]||''} ${k} — ${v.count} (${v.pct}%)</span>`;
+  }
+
+  bodyEl.innerHTML = data.results.map((r, i) => `
+    <tr>
+      <td style="color:var(--muted);font-family:var(--font-mono);font-size:11px">${i+1}</td>
+      <td>${r.komentar}</td>
+      <td><span class="badge ${r.sentimen}">${r.sentimen}</span></td>
+      <td style="font-family:var(--font-mono);font-size:12px;color:var(--muted)">${r.confidence}</td>
+    </tr>
+  `).join('');
+
+  resEl.classList.add('show');
+}
+</script>
+</body>
+</html>
